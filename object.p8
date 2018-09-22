@@ -4,6 +4,15 @@ __lua__
 g_scns = {}
 g_dbg = true
 
+-- p.init()
+-- p.update()
+-- p.draw()
+-- p.define()
+-- p.create()
+-- p.destroy()
+-- p.move()
+-- p.add()
+
 -- util ------------------------
 
 function printl(s,x,y,c)
@@ -34,9 +43,7 @@ function isort(list, fnc)
 	for i=1,#list do
 		local j=i
 		while j>1 and fnc(list[j-1], list[j]) do
-			local t = list[j-1]
-			list[j-1] = list[j]
-			list[j] = t
+			list[j-1],list[j] = list[j],list[j-1]
 			j-=1
 		end
 	end
@@ -52,7 +59,8 @@ end
 
 function class(sub, super)
 	local obj = inherit({}, inherit(sub, super))
-	--local obj = inherit(inherit({}, sub), super)
+	obj._super = super
+	obj._base = sub
 	if obj._const then obj:_const() end
 	return obj
 end
@@ -139,8 +147,11 @@ end
 -- object ------------------------
 
 function reg_obj(obj)
+	del(g_scns.objs.update, obj._super)
 	add(g_scns.objs.update, obj)
 	isort(g_scns.objs.update, sort_obj_update)
+
+	del(g_scns.objs.draw, obj._super)
 	add(g_scns.objs.draw, obj)
 	isort(g_scns.objs.draw, sort_obj_draw)
 end
@@ -151,20 +162,20 @@ function unreg_obj(obj)
 end
 
 function sort_obj_update(a,b)
-	return a._p.update > b._p.update
+	return a._p.u > b._p.u
 end
 
 function sort_obj_draw(a,b)
-	return a._p.draw > b._p.draw
+	return a._p.d > b._p.d
 end
 
 function object(px,py,vx,vy,ax,ay,pu,pd)
  return class(
 		{
-			_p  = {update=pu or 0, draw=pd or pv or 0},
 			pos = {x=px or 0, y=py or 0},
 			vel = {x=vx or 0, y=vy or 0},
 			acc = {x=ax or 0, y=ay or 0},
+			_p  = {u=pu or 0, d=pd or 0},
 
 			update = function(self,delta)
 				self.vel.x += delta*self.acc.x
@@ -177,8 +188,8 @@ function object(px,py,vx,vy,ax,ay,pu,pd)
 			end,
 
 			set_priority = function(self,pu,pd)
-				self._p.update = pu or 0
-				self._p.draw   = pd or self._p.update
+				self._p.u = pu or 0
+				self._p.d = pd or pu or 0
 				isort(g_scns.objs.update, sort_obj_update)
 				isort(g_scns.objs.draw, sort_obj_draw)	
 			end,
@@ -210,7 +221,20 @@ function ball(px,py,vx,vy)
 		{
 			color = 7,
 			update = function(self,delta)
-				self.color += 1
+				self._super:update(delta)
+				if self.pos.x < 0 then
+					self.pos.x = 0
+					self.vel.x = abs(self.vel.x) 
+				end
+				if self.pos.x > 127 then
+					self.pos.x = 127
+					self.vel.x = -abs(self.vel.x) 
+				end
+				if self.pos.y > 127 then
+					self.pos.y = 127
+					self.vel.x =  0.8*self.vel.x 
+					self.vel.y = -0.8*abs(self.vel.y)
+				end
 			end,
 			draw = function(self)
 				circ(self.pos.x,self.pos.y,3,self.color)
@@ -218,10 +242,6 @@ function ball(px,py,vx,vy)
 		}
 		,object(px,py,vx,vy,0,15)
 	)
-	--obj._super.update = function(self,delta)
-	--end
-	--obj._super._super.draw = function(self)
-	--end
 	return obj
 end
 
@@ -230,15 +250,15 @@ end
 scn_title = scene("title")
 
 function scn_title:init()
-	self._super:init()
+	self._base:init(self)
 end
 
 function scn_title:fin()
-	self._super:fin()
+	self._base:fin()
 end
 
 function scn_title:pre_update(delta)
-	self._super:pre_update(delta)
+	self._base:pre_update(delta)
 	
 	if btnp(🅾️) then
 		move_scn("ingame")
@@ -246,17 +266,17 @@ function scn_title:pre_update(delta)
 end
 
 function scn_title:post_update(delta)
-	self._super:post_update(delta)
+	self._base:post_update(delta)
 end
 
 function scn_title:pre_draw()
-	self._super:pre_draw()
+	self._base:pre_draw()
 
 	printm("[title]",64,64,3)
 end
 
 function scn_title:post_draw()
-	self._super:post_draw()
+	self._base:post_draw()
 end
 
 -- ingame ------------------------
@@ -264,7 +284,7 @@ end
 scn_ingame = scene("ingame")
 
 function scn_ingame:init()
-	self._super:init()
+	self._base:init()
 	
 	self.balls = {}
 	self:add_ball()
@@ -289,11 +309,11 @@ function scn_ingame:del_ball()
 end
 
 function scn_ingame:fin()
-	self._super:fin()
+	self._base:fin()
 end
 
 function scn_ingame:pre_update(delta)
-	self._super:pre_update(delta)
+	self._base:pre_update(delta)
 	
 	if btnp(🅾️) then
 		move_scn("result")
@@ -304,17 +324,17 @@ function scn_ingame:pre_update(delta)
 end
 
 function scn_ingame:post_update(delta)
-	self._super:post_update(delta)
+	self._base:post_update(delta)
 
 	self:del_ball()
 end
 
 function scn_ingame:pre_draw()
-	self._super:pre_draw()
+	self._base:pre_draw()
 end
 
 function scn_ingame:post_draw()
-	self._super:post_draw()
+	self._base:post_draw()
 end
 
 -- result ------------------------
@@ -322,15 +342,15 @@ end
 scn_result = scene("result")
 
 function scn_result:init()
-	self._super:init()
+	self._base:init()
 end
 
 function scn_result:fin()
-	self._super:fin()
+	self._base:fin()
 end
 
 function scn_result:pre_update(delta)
-	self._super:pre_update(delta)
+	self._base:pre_update(delta)
 
 	if btnp(🅾️) then
 		move_scn("title")
@@ -340,17 +360,17 @@ function scn_result:pre_update(delta)
 end
 
 function scn_result:post_update(delta)
-	self._super:post_update(delta)
+	self._base:post_update(delta)
 end
 
 function scn_result:pre_draw()
-	self._super:pre_draw()
+	self._base:pre_draw()
 
 	printm("result",64,64,3)
 end
 
 function scn_result:post_draw()
-	self._super:post_draw()
+	self._base:post_draw()
 end
 
 -- init ------------------------
@@ -394,7 +414,7 @@ function draw_debug()
 	if #g_scns.objs.update > 0 then
  	local str=""
  	for i=1,#g_scns.objs.update do
- 		str = str..g_scns.objs.update[i]._p.update
+ 		str = str..g_scns.objs.update[i]._p.u
  		if i<#g_scns.objs.update then str = str.."," end
  	end
  	print("ord: "..str)
