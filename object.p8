@@ -67,8 +67,8 @@ p = {
 	next = nil,
 
 	objs = {
- 	update = {},
- 	draw = {}
+		update = {},
+		draw = {}
 	}
 }
 
@@ -88,15 +88,15 @@ end
 p.update = function(delta)
 	p._pre_update(delta)
 	p._update_objs(delta)
- p._post_update(delta)
+	p._post_update(delta)
 end
 
 p._pre_update = function(delta)	
 	if p.next then
-	 p.current = p.next
-	 p.current:_init()
-	 p.current:init()
-	 p.next = nil
+		p.current = p.next
+		p.current:_init()
+		p.current:init()
+		p.next = nil
 	end
 
 	if p.current then
@@ -129,7 +129,7 @@ end
 p.draw = function()
 	p._pre_draw()
 	p._draw_objs()
- p._post_draw()
+	p._post_draw()
 end
 
 p._pre_draw = function()	
@@ -176,8 +176,8 @@ p.add = function(name)
 	local scn = inherit({},p.scene)
 	scn:const(name)
 	-- register
- p.scns[name] = scn
- return scn
+	p.scns[name] = scn
+	return scn
 end
 
 -- move scene
@@ -261,7 +261,7 @@ p.draw_debug = function()
 		str = str..p.objs.update[i]._p.u
 		if i<#p.objs.update then str = str.."," end
 	end
- print("ord: "..str)
+	print("ord: "..str)
 end
 
 -- sample object ------------------------
@@ -352,7 +352,7 @@ function scn_ingame:pre_update(delta)
 		p.move("result")
 	end
 	if btnp(❎) then
-	 self:add_ball()
+		self:add_ball()
 	end
 end
 
