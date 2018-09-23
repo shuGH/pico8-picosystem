@@ -1,17 +1,11 @@
 pico-8 cartridge // http://www.pico-8.com
 version 16
 __lua__
-g_scns = {}
-g_dbg = true
+--------------------------------
+-- pico system - shuzo iwasaki -
+--------------------------------
 
--- p.init()
--- p.update()
--- p.draw()
--- p.define()
--- p.create()
--- p.destroy()
--- p.move()
--- p.add()
+g_dbg = true
 
 -- util ------------------------
 
@@ -39,7 +33,7 @@ function rndir(l,u)
 	return rndi(abs(u-l))+min(l,u)
 end
 
-function isort(list, fnc)
+function isort(list,fnc)
 	for i=1,#list do
 		local j=i
 		while j>1 and fnc(list[j-1], list[j]) do
@@ -50,250 +44,332 @@ function isort(list, fnc)
 end
 
 function inherit(sub, super)
-	super = super or {}
 	sub._super = super
 	return setmetatable(
 		sub, {__index = super}
 	)
 end
 
-function class(sub, super)
-	local obj = inherit({}, inherit(sub, super))
-	obj._super = super
-	obj._base = sub
-	if obj._const then obj:_const() end
-	return obj
+function instance(cls)
+	return setmetatable(
+		{}, {__index = cls}
+	)
 end
 
--- scene ------------------------
+-- pico system ------------------------
 
-g_scns = {
+p = {
+	object = {},
+	scene = {},
+
 	scns = {},
 	current = nil,
 	next = nil,
+
 	objs = {
  	update = {},
- 	draw = {},
+ 	draw = {}
 	}
 }
 
-function scene(nm)
-	return class(
-		{
-			name = nm,
-			cnt = 0,
-			init = function(self)
-				self.cnt = -1
-			end,
-			fin = function(self)
-			end,
-			pre_update = function(self,delta)
-				self.cnt += 1
-			end,
-			post_update = function(self,delta) end,
-			pre_draw = function(self) end,
-			post_draw = function(self) end
-		}
-	)
-end
-
-function reg_scn(scn)
- g_scns.scns[scn.name] = scn
-end
-
-function move_scn(name)
-	if not g_scns.scns[name] then return end
-	g_scns.next = g_scns.scns[name]
-end
-
-function pre_update_scns(delata)
-	if g_scns.next then
-	 g_scns.current = g_scns.next
-	 g_scns.current:init()
-	 g_scns.next = nil
-	end
-
-	if g_scns.current then
-		g_scns.current:pre_update(delta)
-	end
-end
-
-function post_update_scns(delta)
-	if g_scns.current then
-		g_scns.current:post_update(delta)
-	end
-
-	if g_scns.next then
-		g_scns.current:fin()
-		foreach(g_scns.objs.update,
-			function(obj) obj:destroy() end
-		)
-		g_scns.current.objs = nil
-	end
-end
-
-function pre_draw_scns()
-	if g_scns.current then
-		g_scns.current:pre_draw()
-	end
-end
-
-function post_draw_scns()
-	if g_scns.current then
-		g_scns.current:post_draw()
-	end
-end
-
--- object ------------------------
-
-function reg_obj(obj)
-	del(g_scns.objs.update, obj._super)
-	add(g_scns.objs.update, obj)
-	isort(g_scns.objs.update, sort_obj_update)
-
-	del(g_scns.objs.draw, obj._super)
-	add(g_scns.objs.draw, obj)
-	isort(g_scns.objs.draw, sort_obj_draw)
-end
-
-function unreg_obj(obj)
-	del(g_scns.objs.update, obj)
-	del(g_scns.objs.draw, obj)
-end
-
-function sort_obj_update(a,b)
+p._comp_obj_update = function(a,b)
 	return a._p.u > b._p.u
 end
 
-function sort_obj_draw(a,b)
+p._comp_obj_draw = function(a,b)
 	return a._p.d > b._p.d
 end
 
-function object(px,py,vx,vy,ax,ay,pu,pd)
- return class(
-		{
-			pos = {x=px or 0, y=py or 0},
-			vel = {x=vx or 0, y=vy or 0},
-			acc = {x=ax or 0, y=ay or 0},
-			_p  = {u=pu or 0, d=pd or 0},
+-- main loop
 
-			update = function(self,delta)
-				self.vel.x += delta*self.acc.x
-				self.vel.y += delta*self.acc.y
-				self.pos.x += delta*self.vel.x
-  		self.pos.y += delta*self.vel.y
-			end,
-			draw = function(self)
-				pset(self.pos.x,self.pos.y,7)
-			end,
-
-			set_priority = function(self,pu,pd)
-				self._p.u = pu or 0
-				self._p.d = pd or pu or 0
-				isort(g_scns.objs.update, sort_obj_update)
-				isort(g_scns.objs.draw, sort_obj_draw)	
-			end,
-
-			destroy = function(self)
-				unreg_obj(self)
-			end,
-			_const = function(self)
-				reg_obj(self)
-			end
-		}
-	)
+p.init = function()
 end
 
-function update_objs(delta)
-	foreach(g_scns.objs.update,
+p.update = function(delta)
+	p._pre_update(delta)
+	p._update_objs(delta)
+ p._post_update(delta)
+end
+
+p._pre_update = function(delta)	
+	if p.next then
+	 p.current = p.next
+	 p.current:_init()
+	 p.current:init()
+	 p.next = nil
+	end
+
+	if p.current then
+		p.current:_update(delta)
+		p.current:pre_update(delta)
+	end
+end
+
+p._update_objs = function(delta)	
+	foreach(p.objs.update,
 		function(obj) obj:update(delta) end
 	)
 end
 
-function	draw_objs()
-	foreach(g_scns.objs.draw,
+p._post_update = function(delta)	
+	if p.current then
+		p.current:post_update(delta)
+	end
+
+	if p.next then
+		p.current:fin()
+		-- destroy all objs
+		foreach(p.objs.update,
+			function(obj) obj:destroy() end
+		)
+		p.current.objs = nil
+	end
+end
+
+p.draw = function()
+	p._pre_draw()
+	p._draw_objs()
+ p._post_draw()
+end
+
+p._pre_draw = function()	
+	if not p.current then return end
+	p.current:pre_draw()
+end
+
+p._draw_objs = function()	
+	foreach(p.objs.draw,
 		function(obj) obj:draw() end
 	)
 end
 
-function ball(px,py,vx,vy)
-	obj = class(
-		{
-			color = 7,
-			update = function(self,delta)
-				self._super:update(delta)
-				if self.pos.x < 0 then
-					self.pos.x = 0
-					self.vel.x = abs(self.vel.x) 
-				end
-				if self.pos.x > 127 then
-					self.pos.x = 127
-					self.vel.x = -abs(self.vel.x) 
-				end
-				if self.pos.y > 127 then
-					self.pos.y = 127
-					self.vel.x =  0.8*self.vel.x 
-					self.vel.y = -0.8*abs(self.vel.y)
-				end
-			end,
-			draw = function(self)
-				circ(self.pos.x,self.pos.y,3,self.color)
-			end
-		}
-		,object(px,py,vx,vy,0,15)
-	)
+p._post_draw = function()	
+	if not p.current then return end
+	p.current:post_draw()
+end
+
+-- scene
+
+p.scene = {
+	const = function(self,name)
+		self.name = name
+		self.cnt = 0
+	end,
+
+	_init = function(self)
+		self.cnt = 0
+	end,
+	init = function(self) end,
+	fin = function(self) end,
+
+	_update = function(self,delta)
+		self.cnt += 1
+	end,
+	pre_update = function(self,delta) end,
+	post_update = function(self,delta) end,
+	pre_draw = function(self) end,
+	post_draw = function(self) end
+}
+
+-- add scene
+p.add = function(name)
+	local scn = inherit({},p.scene)
+	scn:const(name)
+	-- register
+ p.scns[name] = scn
+ return scn
+end
+
+-- move scene
+p.move = function(name)
+	if not p.scns[name] then return end
+	p.next = p.scns[name]
+end
+
+-- object
+
+p.object = {
+	const = function(self,px,py,vx,vy,ax,ay,pu,pd)
+		self._p  = {u=pu or 0, d=pd or pu or 0}
+		self.pos = {x=px or 0, y=py or 0}
+		self.vel = {x=vx or 0, y=vy or 0}
+		self.acc = {x=ax or 0, y=ay or 0}
+	end,
+	dest = function(self)
+	end,
+
+	update = function(self,delta)
+		self.vel.x += delta*self.acc.x
+		self.vel.y += delta*self.acc.y
+		self.pos.x += delta*self.vel.x
+		self.pos.y += delta*self.vel.y
+	end,
+	draw = function(self)
+		pset(self.pos.x,self.pos.y,7)
+	end,
+
+	set_priority = function(self,pu,pd)
+		self._p.u = pu or 0
+		self._p.d = pd or pu or 0
+		isort(p.objs.update, p._comp_obj_update)
+		isort(p.objs.draw, p._comp_obj_draw)	
+	end
+}
+
+-- define object class
+p.define = function(sub,super)
+	super = super or p.object
+	return inherit(sub, super)
+end
+
+-- create object
+p.create = function(cls, ...)
+	local obj = instance(cls)
+	obj:const(...)
+	-- register
+	add(p.objs.update, obj)
+	isort(p.objs.update, p._comp_obj_update)
+	add(p.objs.draw, obj)
+	isort(p.objs.draw, p._comp_obj_draw)
 	return obj
 end
 
+-- destroy object
+p.destroy = function(obj)
+	obj:dest()
+	-- unregister
+	del(p.objs.update, obj)
+	del(p.objs.draw, obj)
+end
+
+-- debug
+p.draw_grid = function(num)
+	for i=1,num-1 do
+		line((128/num)*i,0, (128/num)*i,127, 2)
+		line(0,(128/num)*i, 127,(128/num)*i, 2)
+	end
+end
+
+-- debug
+p.draw_debug = function()
+	print("",0,0,11)
+	print("scn: "..p.current.name.." "..p.current.cnt)
+	print("obj: "..#p.objs.update)
+
+	local str=""
+	for i=1,#p.objs.update do
+		str = str..p.objs.update[i]._p.u
+		if i<#p.objs.update then str = str.."," end
+	end
+ print("ord: "..str)
+end
+
+-- sample object ------------------------
+
+ball = p.define({
+	const = function(self,px,py,vx,vy)
+		ball._super.const(self,px,py,vx,vy,0,15)
+		self.color = 7
+	end,
+	dest = function(self)
+	end,
+	
+	update = function(self,delta)
+		ball._super.update(self,delta)
+
+		if self.pos.x < 0 then
+			self.pos.x = 0
+			self.vel.x = abs(self.vel.x) 
+		end
+		if self.pos.x > 127 then
+			self.pos.x = 127
+			self.vel.x = -abs(self.vel.x) 
+		end
+		if self.pos.y > 127 then
+			self.pos.y = 127
+			self.vel.x =  0.8*self.vel.x 
+			self.vel.y = -0.8*abs(self.vel.y)
+		end
+	end,
+	draw = function(self)
+		circ(self.pos.x,self.pos.y,3,self.color)
+	end	
+})
+
+big_ball = p.define({
+	const = function(self,px,py,vx,vy)
+		big_ball._super.const(self,px,py,vx,vy)
+	end,
+	draw = function(self)
+		circ(self.pos.x,self.pos.y,5,self.color)
+	end	
+}, ball)
+
 -- title ------------------------
 
-scn_title = scene("title")
+scn_title = p.add("title")
 
 function scn_title:init()
-	self._base:init(self)
 end
 
 function scn_title:fin()
-	self._base:fin()
 end
 
 function scn_title:pre_update(delta)
-	self._base:pre_update(delta)
-	
 	if btnp(🅾️) then
-		move_scn("ingame")
+		p.move("ingame")
 	end
 end
 
 function scn_title:post_update(delta)
-	self._base:post_update(delta)
 end
 
 function scn_title:pre_draw()
-	self._base:pre_draw()
-
-	printm("[title]",64,64,3)
+	printm("[title]",64,62,3)
 end
 
 function scn_title:post_draw()
-	self._base:post_draw()
 end
 
 -- ingame ------------------------
 
-scn_ingame = scene("ingame")
+scn_ingame = p.add("ingame")
 
 function scn_ingame:init()
-	self._base:init()
-	
 	self.balls = {}
 	self:add_ball()
 end
 
+function scn_ingame:fin()
+	foreach(self.balls,
+		function(ball) p.destroy(ball) end
+	)
+	self.balls = {}
+end
+
+function scn_ingame:pre_update(delta)
+		if btnp(🅾️) then
+		p.move("result")
+	end
+	if btnp(❎) then
+	 self:add_ball()
+	end
+end
+
+function scn_ingame:post_update(delta)
+	self:del_ball()
+end
+
+function scn_ingame:pre_draw()
+end
+
 function scn_ingame:add_ball()
-	local obj = ball(
-	 	rndr(0,128),128,
-			rndr(-30,30),rndr(-80,-20)
+	local cls = ball
+	if rnd(100)>80 then cls = big_ball end
+	local obj = p.create(
+		cls,
+		rndr(0,128),128,
+		rndr(-30,30),rndr(-80,-20)
 	)
 	obj.color = rndir(1,15)
 	obj:set_priority(rndir(0,10))
@@ -302,131 +378,54 @@ end
 
 function scn_ingame:del_ball()
 	if #self.balls > 10 then
-		self.balls[1]:destroy()
+		p.destroy(self.balls[1])
 		del(self.balls, self.balls[1])	
 		self:del_ball()
 	end	
 end
 
-function scn_ingame:fin()
-	self._base:fin()
-end
-
-function scn_ingame:pre_update(delta)
-	self._base:pre_update(delta)
-	
-	if btnp(🅾️) then
-		move_scn("result")
-	end
-	if btnp(❎) then
-	 self:add_ball()
-	end
-end
-
-function scn_ingame:post_update(delta)
-	self._base:post_update(delta)
-
-	self:del_ball()
-end
-
-function scn_ingame:pre_draw()
-	self._base:pre_draw()
-end
-
-function scn_ingame:post_draw()
-	self._base:post_draw()
-end
-
 -- result ------------------------
 
-scn_result = scene("result")
+scn_result = p.add("result")
 
 function scn_result:init()
-	self._base:init()
 end
 
 function scn_result:fin()
-	self._base:fin()
 end
 
 function scn_result:pre_update(delta)
-	self._base:pre_update(delta)
-
 	if btnp(🅾️) then
-		move_scn("title")
+		p.move("title")
 	end
 	if btnp(❎) then
 	end
 end
 
-function scn_result:post_update(delta)
-	self._base:post_update(delta)
-end
-
 function scn_result:pre_draw()
-	self._base:pre_draw()
-
-	printm("result",64,64,3)
-end
-
-function scn_result:post_draw()
-	self._base:post_draw()
+	printm("result",64,62,3)
 end
 
 -- init ------------------------
 
 function _init()
-	g_objs = {}
-	
-	reg_scn(scn_title)
-	reg_scn(scn_ingame)
-	reg_scn(scn_result)
-	move_scn("title")
+	p.init()
+	p.move("title")
 end
 
 -- update ----------------------
 
 function _update()
 	local delta = 1/30
-	pre_update_scns(delta)
-	update_objs(delta)
- post_update_scns(delta)
+	p.update(delta)
 end
 
 -- draw ------------------------
 
-function draw_grid(num)
-	for i=1,num-1 do
-		line(
-			(128/num)*i,0,
-			(128/num)*i,127,2)
-		line(
-			0,(128/num)*i,
-			127,(128/num)*i,2)
-	end
-end
-
-function draw_debug()
-	print("",0,0,11)
-	print("scn: "..g_scns.current.name.." "..g_scns.current.cnt)
-	print("obj: "..#g_scns.objs.update)
-
-	if #g_scns.objs.update > 0 then
- 	local str=""
- 	for i=1,#g_scns.objs.update do
- 		str = str..g_scns.objs.update[i]._p.u
- 		if i<#g_scns.objs.update then str = str.."," end
- 	end
- 	print("ord: "..str)
- end
-end
-
 function _draw()
 	cls()
-	if g_dbg then draw_grid(8) end
-	pre_draw_scns()
-	draw_objs()
-	post_draw_scns()
-	if g_dbg then draw_debug() end
+	if g_dbg then p.draw_grid(8) end
+	p.draw()
+	if g_dbg then p.draw_debug() end
 end
 
