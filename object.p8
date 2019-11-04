@@ -4,8 +4,8 @@ __lua__
 --------------------------------
 -- pico system - shuzo iwasaki -
 --------------------------------
-
-g_dbg = true
+g_dbg = false
+g_win = {x = 128, y = 128}
 
 -- util ------------------------
 
@@ -43,6 +43,17 @@ function isort(list,fnc)
 	end
 end
 
+function dist(x1,y1,x2,y2)
+	-- anti overflow
+	local d = max(abs(x1-x2), abs(y1-y2))
+	local n = max(abs(x1-x2), abs(y1-y2)) / d
+	return sqrt(n*n + 1)*d
+end
+
+function is_collide(x1,y1,r1,x2,y2,r2)
+	return dist(x1,y1,x2,y2) <= (r1 + r2)
+end
+
 function inherit(sub, super)
 	sub._super = super
 	return setmetatable(
@@ -57,6 +68,8 @@ function instance(cls)
 end
 
 -- pico system ------------------------
+-- default: x0 > x128, y128 ^ y0
+-- p-sys:   x0 > x128, y0 ^ y128
 
 p = {
 	object = {},
@@ -91,7 +104,7 @@ p.update = function(delta)
 	p._post_update(delta)
 end
 
-p._pre_update = function(delta)	
+p._pre_update = function(delta)
 	if p.next then
 		p.current = p.next
 		p.current:_init()
@@ -105,13 +118,13 @@ p._pre_update = function(delta)
 	end
 end
 
-p._update_objs = function(delta)	
+p._update_objs = function(delta)
 	foreach(p.objs.update,
 		function(obj) obj:update(delta) end
 	)
 end
 
-p._post_update = function(delta)	
+p._post_update = function(delta)
 	if p.current then
 		p.current:post_update(delta)
 	end
@@ -132,18 +145,18 @@ p.draw = function()
 	p._post_draw()
 end
 
-p._pre_draw = function()	
+p._pre_draw = function()
 	if not p.current then return end
 	p.current:pre_draw()
 end
 
-p._draw_objs = function()	
+p._draw_objs = function()
 	foreach(p.objs.draw,
 		function(obj) obj:draw() end
 	)
 end
 
-p._post_draw = function()	
+p._post_draw = function()
 	if not p.current then return end
 	p.current:post_draw()
 end
@@ -194,6 +207,8 @@ p.object = {
 		self.pos = {x=px or 0, y=py or 0}
 		self.vel = {x=vx or 0, y=vy or 0}
 		self.acc = {x=ax or 0, y=ay or 0}
+
+		self.size = 1
 	end,
 	dest = function(self)
 	end,
@@ -212,7 +227,10 @@ p.object = {
 		self._p.u = pu or 0
 		self._p.d = pd or pu or 0
 		isort(p.objs.update, p._comp_obj_update)
-		isort(p.objs.draw, p._comp_obj_draw)	
+		isort(p.objs.draw, p._comp_obj_draw)
+	end,
+	is_collide = function(self,obj)
+		return is_collide(self.pos.x,self.pos.y,self.size,obj.pos.x,obj.pos.y,obj.size)
 	end
 }
 
@@ -273,27 +291,27 @@ ball = p.define({
 	end,
 	dest = function(self)
 	end,
-	
+
 	update = function(self,delta)
 		ball._super.update(self,delta)
 
 		if self.pos.x < 0 then
 			self.pos.x = 0
-			self.vel.x = abs(self.vel.x) 
+			self.vel.x = abs(self.vel.x)
 		end
 		if self.pos.x > 127 then
 			self.pos.x = 127
-			self.vel.x = -abs(self.vel.x) 
+			self.vel.x = -abs(self.vel.x)
 		end
 		if self.pos.y > 127 then
 			self.pos.y = 127
-			self.vel.x =  0.8*self.vel.x 
+			self.vel.x =  0.8*self.vel.x
 			self.vel.y = -0.8*abs(self.vel.y)
 		end
 	end,
 	draw = function(self)
 		circ(self.pos.x,self.pos.y,3,self.color)
-	end	
+	end
 })
 
 big_ball = p.define({
@@ -302,7 +320,7 @@ big_ball = p.define({
 	end,
 	draw = function(self)
 		circ(self.pos.x,self.pos.y,5,self.color)
-	end	
+	end
 }, ball)
 
 -- title ------------------------
@@ -379,9 +397,9 @@ end
 function scn_ingame:del_ball()
 	if #self.balls > 10 then
 		p.destroy(self.balls[1])
-		del(self.balls, self.balls[1])	
+		del(self.balls, self.balls[1])
 		self:del_ball()
-	end	
+	end
 end
 
 -- result ------------------------
