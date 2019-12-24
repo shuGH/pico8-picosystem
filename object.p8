@@ -46,7 +46,7 @@ end
 function dist(x1,y1,x2,y2)
 	-- anti overflow
 	local d = max(abs(x1-x2), abs(y1-y2))
-	local n = max(abs(x1-x2), abs(y1-y2)) / d
+	local n = min(abs(x1-x2), abs(y1-y2)) / d
 	return sqrt(n*n + 1)*d
 end
 
