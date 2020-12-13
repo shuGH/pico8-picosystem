@@ -1,11 +1,14 @@
 pico-8 cartridge // http://www.pico-8.com
-version 16
+version 18
 __lua__
+
 --------------------------------
 -- pico system - shuzo iwasaki -
 --------------------------------
+
 g_dbg = false
 g_win = {x = 128, y = 128}
+g_fps = 30
 
 -- util ------------------------
 
@@ -230,6 +233,7 @@ p.object = {
 		isort(p.objs.draw, p._comp_obj_draw)
 	end,
 	is_collide = function(self,obj)
+		if obj == nil then return false end
 		return is_collide(self.pos.x,self.pos.y,self.size,obj.pos.x,obj.pos.y,obj.size)
 	end
 }
@@ -254,6 +258,7 @@ end
 
 -- destroy object
 p.destroy = function(obj)
+	if obj == nil then return end
 	obj:dest()
 	-- unregister
 	del(p.objs.update, obj)
@@ -270,7 +275,8 @@ end
 
 -- debug
 p.draw_debug = function()
-	print("",0,0,11)
+	local by = 8
+	print("",0,by,11)
 	print("scn: "..p.current.name.." "..p.current.cnt)
 	print("obj: "..#p.objs.update)
 
