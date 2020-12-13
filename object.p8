@@ -398,6 +398,31 @@ function set_gpio_ope(idx)
 	poke_gpio(s_gpio_ope_idx, idx)
 end
 
+-- functions ------------------------
+
+function save_name(name)
+	dset(0, name[1])
+	dset(1, name[2])
+	dset(2, name[3])
+end
+function load_name()
+	return {dget(0),dget(1),dget(2)}
+end
+
+function save_score(score)
+	dset(3, score)
+end
+function load_score()
+	return dget(3)
+end
+
+function init_data()
+	dset(0, 0)
+	dset(1, 0)
+	dset(2, 0)
+	dset(3, 0)
+end
+
 --------------------------------
 -- common objects -
 --------------------------------
@@ -504,7 +529,7 @@ s_api = {
 	end
 }
 
--- name reel ------------------------
+-- alphabet ------------------------
 
 s_alphabet = {
 	"_","*",
@@ -513,6 +538,20 @@ s_alphabet = {
 	"q","r","s","t","u","v","w","x",
 	"y","z",",",".","+","-","!","?",
 }
+
+function to_name_str(name)
+	local str = ""
+	for i=1, 3 do
+		if name[i] and s_alphabet[name[i]] then
+			str = str..s_alphabet[name[i]]
+		else
+			str = str..s_alphabet[1]
+		end
+	end
+	return str
+end
+
+-- name reel ------------------------
 
 char_reel = p.define({
 	const = function(self, px, py, num, color)
