@@ -402,6 +402,108 @@ end
 -- common objects -
 --------------------------------
 
+-- web api ------------------------
+
+function get_null_ranking(max)
+	local ranking = {}
+	for i=1, max do
+		add(ranking, {n={1,1,1}, s=0})
+	end
+	return ranking
+end
+
+s_api = {
+	init = function(self,max)
+		self.cnt = 0
+		self.elasped = -1.0
+		self.max = max
+		self.wait_max = 4.0
+		self.callback_post = nil
+		self.callback_pull = nil
+
+		poke_gpio(s_gpio_cnt_idx, 0)
+		poke_gpio(s_gpio_ope_idx, 0)
+	end,
+	update = function(self,delta)
+		if self.elasped >= 0 then self.elasped += delta end
+		if self.elasped >= self.wait_max then
+			if self.callback_post ~= nil then self.callback_post() end
+			if self.callback_pull ~= nil then self.callback_pull(get_null_ranking(self.max)) end
+			self.elasped = -1.0
+		end
+
+		if self.cnt == peek_gpio(s_gpio_cnt_idx) then return end
+		self.cnt = peek_gpio(s_gpio_cnt_idx)
+
+		if peek_gpio(s_gpio_ope_idx) == 3 then
+			if self.callback_post ~= nil then
+				self.callback_post()
+				self.callback_post = nil
+			end
+			self.elasped = -1.0
+		elseif peek_gpio(s_gpio_ope_idx) == 4 then
+			if self.callback_pull ~= nil then
+				local ranking = get_null_ranking(self.max)
+				for i=1, #ranking do
+					local idx = s_gpio_pull_idx + (i-1) * 4
+					if peek_gpio(idx) ~= 0 then
+						ranking[i]["n"] = from_name_offset16(
+							from_gpio2({peek_gpio(idx+0), peek_gpio(idx+1)}, true)
+						)
+						ranking[i]["s"] = from_gpio2({peek_gpio(idx+2), peek_gpio(idx+3)})
+					end
+				end
+				self.callback_pull(ranking)
+				self.callback_pull = nil
+			end
+			self.elasped = -1.0
+		end
+	end,
+
+	post = function(self,name,score,callback)
+		if self.elasped >= 0 then return end
+		local name_gpio2 = to_gpio2(to_name_offset16(name), true)
+		local score_gpio2 = to_gpio2(score)
+		poke_gpio(s_gpio_post_idx + 0, name_gpio2[1])
+		poke_gpio(s_gpio_post_idx + 1, name_gpio2[2])
+		poke_gpio(s_gpio_post_idx + 2, score_gpio2[1])
+		poke_gpio(s_gpio_post_idx + 3, score_gpio2[2])
+		set_gpio_ope(1)
+		increment_gpio_cnt()
+		self.callback_post = callback
+		self.elasped = 0
+	end,
+	pull = function(self,callback)
+		if self.elasped >= 0 then return end
+		set_gpio_ope(2)
+		increment_gpio_cnt()
+		self.callback_pull = callback
+		self.elasped = 0
+	end,
+	exit = function(self)
+		self.callback_post = nil
+		self.callback_pull = nil
+		self.elasped = -1
+	end,
+	draw_debug = function(self)
+		local by = 8
+		printr(
+			""..self.elasped..","..self.cnt.." ["..peek_gpio(s_gpio_cnt_idx)..","..peek_gpio(s_gpio_ope_idx).."]",
+			g_win.x,by+0,11
+		)
+		printr(
+			"["..peek_gpio(s_gpio_post_idx+0)..","..peek_gpio(s_gpio_post_idx+1)..","..peek_gpio(s_gpio_post_idx+2)..","..peek_gpio(s_gpio_post_idx+3).."]",
+			g_win.x,by+6,11
+		)
+		local n = from_gpio2({peek_gpio(s_gpio_post_idx+0), peek_gpio(s_gpio_post_idx+1)}, true)
+		local s = from_gpio2({peek_gpio(s_gpio_post_idx+2), peek_gpio(s_gpio_post_idx+3)})
+		printr(
+			"("..n..","..s..")",
+			g_win.x,by+12,11
+		)
+	end
+}
+
 -- name reel ------------------------
 
 s_alphabet = {
