@@ -748,6 +748,125 @@ score_manager = p.define({
 	end,
 })
 
+-- effect ------------------------
+
+effect_manager = p.define({
+	const = function(self)
+		effect_manager._super.const(self)
+		self:set_priority(8,8)
+
+		-- ptcl list {px,py,vx,vy,ax,ay,size,line,clr,life}
+		self.ptcls = {}
+		-- ptcl setting
+		self.dash = {
+			vx=6,vy=0,ax=0,ay=0,
+			size=4,life=0.4,rect=10,clrs={6,7,7},
+			num=8,line=true
+		}
+		self.smoke = {
+			vx=12,vy=8,ax=0,ay=16,
+			size=2.6,life=0.8,rect=8,clrs={7,7,6,6},
+			num=10,line=false
+		}
+		self.smoke_s = {
+			vx=13,vy=7,ax=0,ay=16,
+			size=1.6,life=0.6,rect=8,clrs={7,7,7,6},
+			num=10,line=false
+		}
+
+		-- fade
+		self.fade_duration = 0.0
+		self.fade_from = 0.0
+		self.fade_to = 1.0
+		self.fade_elasped = -1.0
+	end,
+	dest = function(self)
+		for i=1, #self.ptcls do
+			self.ptcls[i] = {}
+		end
+		self.ptcls = {}
+		-- fade_scr(0.0)
+	end,
+
+	update = function(self,delta)
+		effect_manager._super.update(self,delta)
+		-- ptcl
+		for i=#self.ptcls, 1, -1 do
+			for j=#self.ptcls[i], 1, -1 do
+				local ptcl = self.ptcls[i][j]
+				ptcl.vx += ptcl.ax * delta
+				ptcl.px += ptcl.vx * delta
+				ptcl.vy += ptcl.ay * delta
+				ptcl.py += ptcl.vy * delta
+				ptcl.life -= delta
+				if ptcl.life < 0.0 then
+					del(self.ptcls[i], ptcl)
+				end
+			end
+			if #self.ptcls[i] == 0 then
+				del(self.ptcls, self.ptcls[i])
+			end
+		end
+		-- fade
+		if self.fade_elasped >= 0.0 then
+			self.fade_elasped += delta
+			if (self.fade_elasped > self.fade_duration) then
+				fade_scr(self.fade_from)
+				self.fade_elasped = -1.0
+			else
+				local r = self.fade_to + ((self.fade_from - self.fade_to) * (self.fade_elasped/self.fade_duration))
+				fade_scr(r)
+			end
+		end
+	end,
+	draw = function(self)
+		for i=1, #self.ptcls do
+			for j=1, #self.ptcls[i] do
+				local ptcl = self.ptcls[i][j]
+				if ptcl.line then
+					local ox=(ptcl.vx<0 and -ptcl.size or (ptcl.vx>0 and ptcl.size or 0))
+					local oy=(ptcl.vy<0 and -ptcl.size or (ptcl.vy>0 and ptcl.size or 0))
+					line(ptcl.px, ptcl.py, ptcl.px+ox, ptcl.py+oy, ptcl.clr)
+				else
+					circfill(ptcl.px, ptcl.py, ptcl.size, ptcl.clr)
+				end
+			end
+		end
+	end,
+
+	spawn_ptcl = function(self, setting, x,y, dx,dy)
+		dx = dx or 0
+		dy = dy or 0
+		local ptcls = {}
+		for i=1, setting.num do
+			add(ptcls, {
+				px = x + rndr(-setting.rect/2.0, setting.rect/2.0),
+				py = y + rndr(-setting.rect/2.0, setting.rect/2.0),
+				vx = rndr(-setting.vx, setting.vx) + dx,
+				vy = rndr(-setting.vy, setting.vy) + dy,
+				ax = setting.ax,
+				ay = setting.ay,
+				size = rndr(1,setting.size),
+				clr = setting.clrs[rndir(1,#setting.clrs)],
+				life = setting.life,
+				line = setting.line
+			})
+		end
+		add(self.ptcls, ptcls)
+	end,
+	fade_in = function(self,sec)
+		self.fade_duration = sec
+		self.fade_from = 0.0
+		self.fade_to = 1.0
+		self.fade_elasped = 0.0
+	end,
+	fade_out = function(self,sec)
+		self.fade_duration = sec
+		self.fade_from = 1.0
+		self.fade_to = 0.0
+		self.fade_elasped = 0.0
+	end
+})
 
 --------------------------------
 -- sample -
