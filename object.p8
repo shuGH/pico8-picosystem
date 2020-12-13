@@ -707,6 +707,47 @@ ranking_manager = p.define({
 	end
 })
 
+-- score ------------------------
+
+score_manager = p.define({
+	const = function(self,konezu_list,effect)
+		score_manager._super.const(self)
+		self:set_priority(1000,1000)
+		self.score = 0.0
+		self.remaining = 90
+		-- state (ready, playing, stop)
+		self.state = 'ready'
+		self.konezu_list = konezu_list
+	end,
+	update = function(self,delta)
+		score_manager._super.update(self,delta)
+		if self.state == 'playing' then
+			if self.remaining < 0 then
+				self.state = 'stop'
+			else
+				self.remaining -= delta
+			end
+		end
+	end,
+	draw = function(self)
+		local py = 1
+		print("time:",s_letter+4,py,11)
+		printr(""..ceil(self.remaining),s_letter+31,py,11)
+		spr(6,g_win.y-s_letter-25,py-2,1,1)
+		print(":",g_win.y-s_letter-16,py,11)
+		printr(""..#self.konezu_list,g_win.y-s_letter-5,py,11)
+	end,
+	start = function(self)
+		self.state = 'playing'
+	end,
+	stop = function(self)
+		self.state = 'stop'
+	end,
+	get_score = function(self)
+		return #self.konezu_list*100
+	end,
+})
+
 
 --------------------------------
 -- sample -
