@@ -653,6 +653,61 @@ char_reel = p.define({
 	end
 })
 
+-- ranking ------------------------
+
+ranking_manager = p.define({
+	const = function(self,px,py,max)
+		ranking_manager._super.const(self,px,py)
+		self.max = max
+		self.ranking = get_null_ranking(self.max)
+		self.marks = {128,129,130}
+		self.loading = false
+		self.cnt = 0
+		self.anim = 0
+		self.anim_d = 4
+	end,
+	dest = function(self)
+		self.ranking = {}
+	end,
+
+	update = function(self,delta)
+		ranking_manager._super.update(self,delta)
+	end,
+	draw = function(self)
+		for i=1, self.max do
+			local x = self.pos.x
+			local y = self.pos.y + (10*(i-1))
+			local name = "---"
+			local score = 0
+			if self.ranking[i] then
+				name = to_name_str(self.ranking[i]["n"])
+				score = self.ranking[i]["s"]
+			 end
+			printl(""..i..". ", x, y, 11)
+			printl(""..name,    x+10, y, 11)
+			printr(""..score,   x+64, y, 11)
+			if self.marks[i] then
+				spr(self.marks[i],x-12,y-2)
+			end
+		end
+
+		if self.loading then
+			self.cnt += 1
+			if self.cnt % self.anim_d == 0 then self.anim += 1 end
+			if self.anim >= 4 then self.anim = 0 end
+			spr(144 + self.anim, g_win.x/2-4, g_win.x/2-4)
+		end
+	end,
+	activate_loading = function(self, is_active)
+		self.loading = is_active
+		self.cnt = 0
+	end,
+	set_ranking = function(self, ranking)
+		self.ranking = ranking
+	end
+})
+
+
 --------------------------------
 -- sample -
 --------------------------------
