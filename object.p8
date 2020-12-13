@@ -290,9 +290,8 @@ p.draw_debug = function()
 	print("ord: "..str)
 end
 
--- functions ------------------------
+-- fade ------------------------
 
--- fade
 s_fade_table={
 	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	{1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
@@ -318,6 +317,85 @@ function fade_scr(rate)
 		local i = mid(0,flr(rate * 15),15) + 1
 		pal(c, s_fade_table[c+1][i])
 	end
+end
+
+-- gpio ------------------------
+
+-- name: 36*36*36 = 46656
+-- num: -32768.0 to 32767.99
+-- gpio: 255*255 = 65025
+
+s_gpio_cnt_idx = 10
+s_gpio_ope_idx = 11
+s_gpio_post_idx = 12
+s_gpio_pull_idx = 12
+
+-- num: -32768.0 to 32767.99 (overflow in calc is ok.)
+s_num_offset = 32767
+
+function peek_gpio(idx)
+	return peek(0x5f80 + idx)
+end
+function poke_gpio(idx, n)
+	poke(0x5f80 + idx, n)
+end
+
+function to_gpio2(num16, is_offset)
+	is_offset = is_offset or false
+	if is_offset then
+		return {(num16 + s_num_offset) % 256, flr((num16 + s_num_offset) / 256)}
+	end
+	return {num16 % 256, flr(num16 / 256)}
+end
+function from_gpio2(gpio2, is_offset)
+	is_offset = is_offset or false
+	if is_offset then
+		return gpio2[1] + (gpio2[2] * 256) - s_num_offset
+	end
+	return gpio2[1] + (gpio2[2] * 256)
+end
+
+function to_name_offset16(arr)
+	local num16o = -s_num_offset
+	local n = 1
+	for i=1, 3 do
+		num16o += arr[i] * n
+		n *= 40
+	end
+	return num16o
+end
+function from_name_offset16(num16o)
+	local arr = {}
+	local n = 1
+	local mod = s_num_offset % 40
+	local num = num16o + mod
+	local off = s_num_offset - mod
+	for i=1, 3 do
+		-- over 32767/40 is not work
+		mod = off % 40
+		num += mod
+		off -= mod
+		if num < 0 then
+			arr[i] = (num + off) % 40
+		else
+			arr[i] = ((num % 40) + (off % 40)) % 40
+		end
+		num = (num - arr[i])/40
+		off = off/40
+	end
+	return arr
+end
+
+function increment_gpio_cnt()
+	if (peek_gpio(s_gpio_cnt_idx) >= 256) then
+		poke_gpio(s_gpio_cnt_idx, 0)
+	else
+		poke_gpio(s_gpio_cnt_idx, peek_gpio(s_gpio_cnt_idx) + 1)
+	end
+end
+function set_gpio_ope(idx)
+	-- 1:post, 2:pull, 3:post done, 4:pull ok
+	poke_gpio(s_gpio_ope_idx, idx)
 end
 
 --------------------------------
