@@ -292,6 +292,7 @@ end
 
 -- functions ------------------------
 
+-- fade
 s_fade_table={
 	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 	{1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
@@ -319,11 +320,123 @@ function fade_scr(rate)
 	end
 end
 
+--------------------------------
+-- common objects -
+--------------------------------
 
+-- name reel ------------------------
 
--- util ------------------------
+s_alphabet = {
+	"_","*",
+	"a","b","c","d","e","f","g","h",
+	"i","j","k","l","m","n","o","p",
+	"q","r","s","t","u","v","w","x",
+	"y","z",",",".","+","-","!","?",
+}
 
+char_reel = p.define({
+	const = function(self, px, py, num, color)
+		char_reel._super.const(self,px,py)
+		self.chars = {}
+		for i = 1, num do
+			self.chars[i] = 1
+		end
 
+		self.index = 1
+		self.color = color
+
+		self.fixed = false
+		self.decided = false
+		self.duration = 0.4
+		self.elasped = 0
+	end,
+	dest = function(self)
+	end,
+
+	update = function(self,delta)
+		char_reel._super.update(self,delta)
+		self.elasped = (self.elasped < self.duration * 2) and (self.elasped + delta) or (0)
+	end,
+	draw = function(self)
+		-- blink after decided
+		if self.decided then
+			if self.elasped > self.duration then return end
+		end
+
+		local x = 0
+		local y = 0
+		color(self.color)
+		print("[", self.pos.x + (-0 * 4), self.pos.y)
+		for i = 1, #self.chars do
+			local char = s_alphabet[self.chars[i]]
+			if self.fixed then
+				print(char, self.pos.x + (i * 4), self.pos.y)
+			elseif (i ~= self.index) or (self.elasped > self.duration) then
+				-- blink
+				print(char, self.pos.x + (i * 4), self.pos.y)
+			end
+		end
+		print("]", self.pos.x + ((#self.chars+1) * 4), self.pos.y)
+	end,
+	is_fixed = function(self)
+		return self.fixed
+	end,
+	is_decided = function(self)
+		return self.decided
+	end,
+	is_first = function(self)
+		return (self.index == 1)
+	end,
+	is_last = function(self)
+		return (self.index == #self.chars)
+	end,
+	decide = function(self)
+		self.duration = 0.1
+		self.decided = true
+	end,
+	fix = function(self)
+		self.fixed = true
+	end,
+	cancel = function(self)
+		self.fixed = false
+		self.elasped = 0
+	end,
+	set_index = function(self, idx)
+		self.index = mid(1, idx, #self.chars)
+		if self.chars[self.index] == 1 then
+			self.chars[self.index] = 2
+		end
+	end,
+	next = function(self)
+		self:set_index((self.index < #self.chars) and (self.index + 1) or (1))
+		self.elasped = 0
+	end,
+	back = function(self)
+		self:set_index((self.index > 1) and (self.index - 1) or (#self.chars))
+		self.elasped = 0
+	end,
+	roll_up = function(self)
+		self.chars[self.index] = (self.chars[self.index] < #s_alphabet) and (self.chars[self.index] + 1) or (2)
+		self.elasped = self.duration
+	end,
+	roll_down = function(self)
+		self.chars[self.index] = (self.chars[self.index] > 2) and (self.chars[self.index] - 1) or (#s_alphabet)
+		self.elasped = self.duration
+	end,
+
+	set_name = function(self, name)
+		for i=1, #self.chars do
+			self.chars[i] = (name[i] == nil or name[i] <= 0 or name[i] > #s_alphabet) and 1 or name[i]
+		end
+	end,
+	get_name = function(self)
+		return self.chars
+	end
+})
+
+--------------------------------
+-- sample -
+--------------------------------
 
 ball = p.define({
 	const = function(self,px,py,vx,vy)
