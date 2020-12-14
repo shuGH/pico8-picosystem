@@ -7,10 +7,9 @@ __lua__
 --------------------------------
 
 g_dbg = false
-g_win = {x = 128, y = 128}
 g_fps = 30
-
-s_dbg_log = {'','',''}
+g_win = {x = 128, y = 128}
+s_letter = {h = 0, v = 20}
 
 -- utilities ------------------------
 
@@ -49,6 +48,8 @@ function isort(list,fnc)
 end
 
 function dist(x1,y1,x2,y2)
+	x2 = x2 or 0.0
+	y2 = y2 or 0.0
 	-- anti overflow
 	local d = max(abs(x1-x2), abs(y1-y2))
 	local n = min(abs(x1-x2), abs(y1-y2)) / d
@@ -267,17 +268,9 @@ p.destroy = function(obj)
 	del(p.objs.draw, obj)
 end
 
--- debug
-p.draw_grid = function(num)
-	for i=1,num-1 do
-		line((128/num)*i,0, (128/num)*i,127, 2)
-		line(0,(128/num)*i, 127,(128/num)*i, 2)
-	end
-end
-
--- debug
-p.draw_debug = function()
-	local by = 8
+-- info
+p.draw_info = function()
+	local by = 1
 	print("",0,by,11)
 	print("scn: "..p.current.name.." "..p.current.cnt)
 	print("obj: "..#p.objs.update)
@@ -290,36 +283,9 @@ p.draw_debug = function()
 	print("ord: "..str)
 end
 
--- fade ------------------------
-
-s_fade_table={
-	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-	{1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
-	{2,2,2,2,2,2,1,1,1,0,0,0,0,0,0},
-	{3,3,3,3,3,3,1,1,1,0,0,0,0,0,0},
-	{4,4,4,2,2,2,2,2,1,1,0,0,0,0,0},
-	{5,5,5,5,5,1,1,1,1,1,0,0,0,0,0},
-	{6,6,13,13,13,13,5,5,5,5,1,1,1,0,0},
-	{7,6,6,6,6,13,13,13,5,5,5,1,1,0,0},
-	{8,8,8,8,2,2,2,2,2,2,0,0,0,0,0},
-	{9,9,9,4,4,4,4,4,4,5,5,0,0,0,0},
-	{10,10,9,9,9,4,4,4,5,5,5,5,0,0,0},
-	{11,11,11,3,3,3,3,3,3,3,0,0,0,0,0},
-	{12,12,12,12,12,3,3,1,1,1,1,1,1,0,0},
-	{13,13,13,5,5,5,5,1,1,1,1,1,0,0,0},
-	{14,14,14,13,4,4,2,2,2,2,2,1,1,0,0},
-	{15,15,6,13,13,13,5,5,5,5,5,1,1,0,0}
-}
-
--- rate: [0.0,1.0]
-function fade_scr(rate)
-	for c=0,15 do
-		local i = mid(0,flr(rate * 15),15) + 1
-		pal(c, s_fade_table[c+1][i])
-	end
-end
-
--- gpio ------------------------
+--------------------------------
+-- gpio --
+--------------------------------
 
 -- name: 36*36*36 = 46656
 -- num: -32768.0 to 32767.99
@@ -398,36 +364,9 @@ function set_gpio_ope(idx)
 	poke_gpio(s_gpio_ope_idx, idx)
 end
 
--- functions ------------------------
-
-function save_name(name)
-	dset(0, name[1])
-	dset(1, name[2])
-	dset(2, name[3])
-end
-function load_name()
-	return {dget(0),dget(1),dget(2)}
-end
-
-function save_score(score)
-	dset(3, score)
-end
-function load_score()
-	return dget(3)
-end
-
-function init_data()
-	dset(0, 0)
-	dset(1, 0)
-	dset(2, 0)
-	dset(3, 0)
-end
-
 --------------------------------
--- common objects -
+-- web api -
 --------------------------------
-
--- web api ------------------------
 
 function get_null_ranking(max)
 	local ranking = {}
@@ -437,7 +376,7 @@ function get_null_ranking(max)
 	return ranking
 end
 
-s_api = {
+api = {
 	init = function(self,max)
 		self.cnt = 0
 		self.elasped = -1.0
@@ -510,8 +449,8 @@ s_api = {
 		self.callback_pull = nil
 		self.elasped = -1
 	end,
-	draw_debug = function(self)
-		local by = 8
+	draw_info = function(self)
+		local by = 1
 		printr(
 			""..self.elasped..","..self.cnt.." ["..peek_gpio(s_gpio_cnt_idx)..","..peek_gpio(s_gpio_ope_idx).."]",
 			g_win.x,by+0,11
@@ -528,6 +467,108 @@ s_api = {
 		)
 	end
 }
+
+--------------------------------
+-- data -
+--------------------------------
+
+function save_name(name)
+	dset(0, name[1])
+	dset(1, name[2])
+	dset(2, name[3])
+end
+
+function load_name()
+	return {dget(0),dget(1),dget(2)}
+end
+
+function save_score(score)
+	dset(3, score)
+end
+function load_score()
+	return dget(3)
+end
+
+function init_data()
+	dset(0, 0)
+	dset(1, 0)
+	dset(2, 0)
+	dset(3, 0)
+end
+
+--------------------------------
+-- common -
+--------------------------------
+
+-- debug ------------------------
+
+s_dbg_log = {'','',''}
+
+function set_log(i,val)
+	s_dbg_log[i] = val
+end
+
+function set_logs(vals)
+	vals = vals or {}
+	s_dbg_log[1] = vals[1] or ''
+	s_dbg_log[2] = vals[2] or ''
+	s_dbg_log[3] = vals[3] or ''
+end
+
+function draw_logs()
+	for i=1, #s_dbg_log do
+		print(s_dbg_log[i], 0, (g_win.y-18)+6*(i-1),11)
+	end
+end
+
+function draw_grid(num)
+	for i=1,num-1 do
+		line((128/num)*i,0, (128/num)*i,127, 2)
+		line(0,(128/num)*i, 127,(128/num)*i, 2)
+	end
+end
+
+-- fade ------------------------
+
+s_fade_table={
+	{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+	{1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
+	{2,2,2,2,2,2,1,1,1,0,0,0,0,0,0},
+	{3,3,3,3,3,3,1,1,1,0,0,0,0,0,0},
+	{4,4,4,2,2,2,2,2,1,1,0,0,0,0,0},
+	{5,5,5,5,5,1,1,1,1,1,0,0,0,0,0},
+	{6,6,13,13,13,13,5,5,5,5,1,1,1,0,0},
+	{7,6,6,6,6,13,13,13,5,5,5,1,1,0,0},
+	{8,8,8,8,2,2,2,2,2,2,0,0,0,0,0},
+	{9,9,9,4,4,4,4,4,4,5,5,0,0,0,0},
+	{10,10,9,9,9,4,4,4,5,5,5,5,0,0,0},
+	{11,11,11,3,3,3,3,3,3,3,0,0,0,0,0},
+	{12,12,12,12,12,3,3,1,1,1,1,1,1,0,0},
+	{13,13,13,5,5,5,5,1,1,1,1,1,0,0,0},
+	{14,14,14,13,4,4,2,2,2,2,2,1,1,0,0},
+	{15,15,6,13,13,13,5,5,5,5,5,1,1,0,0}
+}
+
+-- rate: [0.0,1.0]
+function fade_scr(rate)
+	for c=0,15 do
+		local i = mid(0,flr(rate * 15),15) + 1
+		pal(c, s_fade_table[c+1][i])
+	end
+end
+
+-- letter box ------------------------
+
+function draw_letter_box()
+	if (s_letter.h > 0) then
+		rectfill(0,0,s_letter.h-1,g_win.y,1)
+		rectfill(g_win.x-s_letter.h,0,g_win.x,g_win.y,1)
+	end
+	if (s_letter.v > 0) then
+		rectfill(0,0,g_win.x,s_letter.v-1,1)
+		rectfill(0,g_win.y-s_letter.v,g_win.x,g_win.y,1)
+	end
+end
 
 -- alphabet ------------------------
 
@@ -707,47 +748,6 @@ ranking_manager = p.define({
 	end
 })
 
--- score ------------------------
-
-score_manager = p.define({
-	const = function(self,konezu_list,effect)
-		score_manager._super.const(self)
-		self:set_priority(1000,1000)
-		self.score = 0.0
-		self.remaining = 90
-		-- state (ready, playing, stop)
-		self.state = 'ready'
-		self.konezu_list = konezu_list
-	end,
-	update = function(self,delta)
-		score_manager._super.update(self,delta)
-		if self.state == 'playing' then
-			if self.remaining < 0 then
-				self.state = 'stop'
-			else
-				self.remaining -= delta
-			end
-		end
-	end,
-	draw = function(self)
-		local py = 1
-		print("time:",s_letter+4,py,11)
-		printr(""..ceil(self.remaining),s_letter+31,py,11)
-		spr(6,g_win.y-s_letter-25,py-2,1,1)
-		print(":",g_win.y-s_letter-16,py,11)
-		printr(""..#self.konezu_list,g_win.y-s_letter-5,py,11)
-	end,
-	start = function(self)
-		self.state = 'playing'
-	end,
-	stop = function(self)
-		self.state = 'stop'
-	end,
-	get_score = function(self)
-		return #self.konezu_list*100
-	end,
-})
-
 -- effect ------------------------
 
 effect_manager = p.define({
@@ -785,7 +785,7 @@ effect_manager = p.define({
 			self.ptcls[i] = {}
 		end
 		self.ptcls = {}
-		-- fade_scr(0.0)
+		fade_scr(0.0)
 	end,
 
 	update = function(self,delta)
@@ -868,9 +868,62 @@ effect_manager = p.define({
 	end
 })
 
+-- message ------------------------
+
+message_manager = p.define({
+	const = function(self)
+		message_manager._super.const(self)
+		self.msgs = {}
+	end,
+	dest = function(self)
+		for i=1, #self.msgs do
+			self.msgs[i] = {}
+		end
+		self.msgs = {}
+	end,
+
+	update = function(self,delta)
+		message_manager._super.update(self,delta)
+		for i=#self.msgs, 1, -1 do
+			local msg = self.msgs[i]
+			msg.l -= delta
+			if msg.l < 0.0 then
+				del(self.msgs, msg)
+			end
+		end
+	end,
+	draw = function(self)
+		for i=1, #self.msgs do
+			local msg = self.msgs[i]
+			local f = ((msg.l % (msg.d * 2.0)) > msg.d)
+			if (not msg.b) or f then printm(msg.t,msg.px,msg.py,msg.c) end
+		end
+	end,
+
+	spawn_msg = function(self,x,y,text,life,is_blink,color,duration)
+		local msg = {
+			px = x,
+			py = y,
+			t = text,
+			l = life,
+			b = is_blink or false,
+			c = color or 11,
+			d = duration or 0.16
+		}
+		add(self.msgs, msg)
+	end
+})
+
 --------------------------------
--- sample -
+-- sample project -
 --------------------------------
+
+s_score = 0
+s_name = {1,1,1}
+s_ranking_max = 5
+s_cart_id = 'sample'
+
+-- objects ------------------------
 
 ball = p.define({
 	const = function(self,px,py,vx,vy)
@@ -891,8 +944,8 @@ ball = p.define({
 			self.pos.x = 127
 			self.vel.x = -abs(self.vel.x)
 		end
-		if self.pos.y > 127 then
-			self.pos.y = 127
+		if self.pos.y > 127 - s_letter.v then
+			self.pos.y = 127 - s_letter.v
 			self.vel.x =  0.8*self.vel.x
 			self.vel.y = -0.8*abs(self.vel.y)
 		end
@@ -911,19 +964,85 @@ big_ball = p.define({
 	end
 }, ball)
 
+score_manager = p.define({
+	const = function(self,time,ball_list)
+		score_manager._super.const(self)
+		self:set_priority(1000,1000)
+		self.score = 0.0
+		self.remaining = time
+		-- state (ready, playing, stop)
+		self.state = 'ready'
+		self.ball_list = ball_list
+	end,
+	update = function(self,delta)
+		score_manager._super.update(self,delta)
+		if self.state == 'playing' then
+			if self.remaining < 0 then
+				self.state = 'stop'
+			else
+				self.remaining -= delta
+			end
+		end
+	end,
+	draw = function(self)
+		local px = 2
+		local py = s_letter.v + 2
+		print("time:",px,py,11)
+		printr(""..ceil(self.remaining),px+31,py,11)
+		print("score:",g_win.x-px-42,py,11)
+		printr(""..self:get_score(),g_win.x-px,py,11)
+	end,
+	start = function(self)
+		self.state = 'playing'
+	end,
+	stop = function(self)
+		self.state = 'stop'
+	end,
+	get_score = function(self)
+		return #self.ball_list * 10
+	end,
+})
+
 -- title ------------------------
 
 scn_title = p.add("title")
 
 function scn_title:init()
+	set_logs({})
+	if g_dbg then
+		local n = load_name()
+		set_log(3,"["..n[1]..","..n[2]..","..n[3].."] "..load_score())
+	end
+
+	self.next = ""
+	self.duration = 0.16
+	self.elasped = -1.0
+
+	self.effect = p.create(effect_manager)
 end
 
 function scn_title:fin()
+	p.destroy(self.effect)
 end
 
 function scn_title:pre_update(delta)
+	if self.elasped >= 0.0 then
+		self.elasped += delta
+		if self.elasped > 0.8 then
+			p.move(self.next)
+		end
+		-- button disable
+		return
+	end
+
 	if btnp(🅾️) then
-		p.move("ingame")
+		self.next = "ingame"
+		self.elasped = 0.0
+	end
+	if btnp(❎) then
+		if api.elasped < 0 then
+			p.move("ranking")
+		end
 	end
 end
 
@@ -932,6 +1051,22 @@ end
 
 function scn_title:pre_draw()
 	printm("[title]",64,62,3)
+
+	local px = 34
+	local col = 7
+	if self.elasped < 0 then
+		print("press 🅾️ start",px,88,col)
+		print("press ❎ ranking",px,98,col)
+	else
+		local d = self.duration * 2.0
+		local f = (self.elasped % d > self.duration)
+		if self.next ~= "ingame" or f then
+			print("press 🅾️ start",px,88,col)
+		end
+		if self.next ~= "ranking" or f then
+			print("press ❎ ranking",px,98,col)
+		end
+	end
 end
 
 function scn_title:post_draw()
@@ -942,11 +1077,28 @@ end
 scn_ingame = p.add("ingame")
 
 function scn_ingame:init()
+	set_logs({})
+	s_score = 0
+
+	-- state (demo, playing, ended)
+	self.state = 'demo'
+	self.elasped = 0.0
 	self.balls = {}
-	self:add_ball()
+
+	self.effect = p.create(effect_manager)
+	self.score = p.create(score_manager,60,self.balls)
+	self.msg = p.create(message_manager)
+
+	self.score:start()
+	self.effect:fade_in(0.8)
 end
 
 function scn_ingame:fin()
+	s_score = self.score:get_score()
+
+	p.destroy(self.effect)
+	p.destroy(self.score)
+	p.destroy(self.msg)
 	foreach(self.balls,
 		function(ball) p.destroy(ball) end
 	)
@@ -954,19 +1106,67 @@ function scn_ingame:fin()
 end
 
 function scn_ingame:pre_update(delta)
+	set_log(1, self.state)
+	set_log(2, self.cnt)
+	set_log(3, #self.balls)
+
+	-- update
+	if self.state == 'demo' then
+		if self.cnt/g_fps > 2.4 then
+			self.state = 'playing'
+			self.cnt = 0
+			self.msg:spawn_msg(64,48,"[start]",2.0,true)
+			self:add_ball()
+		end
+	elseif self.state == 'playing' then
+		if self.score.state == 'stop' then
+			self.state = 'ended'
+			self.cnt = 0
+			self.msg:spawn_msg(64,48,"[time over]",2.0,true)
+		end
+	elseif self.state == 'ended' then
+		-- goto result
+		if self.cnt/g_fps > 3.2 then
+			p.move("result")
+		end
+		-- fade
+		if self.cnt/g_fps > 2.0 and self.effect.fade_elasped < 0.0 then
+			self.effect:fade_out(1.2)
+		end
+	end
+
+	-- collision
+	if self.state == 'playing' then
+	end
+
+	-- input
+	if self.state == 'playing' then
 		if btnp(🅾️) then
-		p.move("result")
+			self:add_ball()
+		end
+		if btnp(❎) then
+			if self.cnt/g_fps > 2.0 then
+				self.state = 'ended'
+				self.cnt = 0
+				self.msg:spawn_msg(64,48,"[game over]",2.0,true)
+			end
+		end
 	end
-	if btnp(❎) then
-		self:add_ball()
-	end
+
 end
 
 function scn_ingame:post_update(delta)
-	self:del_ball()
+	self:cull_ball()
 end
 
 function scn_ingame:pre_draw()
+end
+
+function scn_ingame:post_draw()
+	-- state
+	if self.state == 'demo' then
+		printm("press 🅾️ ball, ❎ exit",60,98,12)
+	end
 end
 
 function scn_ingame:add_ball()
@@ -974,7 +1174,7 @@ function scn_ingame:add_ball()
 	if rnd(100)>80 then cls = big_ball end
 	local obj = p.create(
 		cls,
-		rndr(0,128),128,
+		rndr(0,128),128 - s_letter.v,
 		rndr(-30,30),rndr(-80,-20)
 	)
 	obj.color = rndir(1,15)
@@ -982,11 +1182,13 @@ function scn_ingame:add_ball()
 	add(self.balls, obj)
 end
 
-function scn_ingame:del_ball()
-	if #self.balls > 10 then
-		p.destroy(self.balls[1])
-		del(self.balls, self.balls[1])
-		self:del_ball()
+function scn_ingame:cull_ball()
+	for i=#self.balls, 1, -1 do
+		local b = self.balls[i]
+		if dist(b.vel.x,b.vel.y) < 1.0 then
+			del(self.balls, b)
+			p.destroy(b)
+		end
 	end
 end
 
@@ -995,43 +1197,246 @@ end
 scn_result = p.add("result")
 
 function scn_result:init()
+	self.reel = p.create(
+		char_reel, g_win.x/2 - 10, g_win.y/2 + 4, 3, 7
+	)
+	self.reel:set_name(load_name())
+	self.reel:set_index(1)
+	self.is_new = s_score > load_score()
+	self.elasped = -1.0
+	self.effect = p.create(effect_manager)
+
+	fade_scr(0.0)
 end
 
 function scn_result:fin()
+	p.destroy(self.reel)
+	p.destroy(self.effect)
 end
 
 function scn_result:pre_update(delta)
+	-- s_dbg_log[1] = #self.konezu_list
+
+	if self.elasped >= 0 then
+		self.elasped += delta
+		-- goto title after decided
+		if self.elasped >= 2.0 then
+			p.move("title")
+		end
+		-- button disable
+		return
+	end
+
+	if btnp(⬆️) or btnp(➡️) then
+		if not self.reel:is_fixed() then
+			self.reel:roll_up()
+		end
+	end
+	if btnp(⬇️) or btnp(⬅️) then
+		if not self.reel:is_fixed() then
+			self.reel:roll_down()
+		end
+	end
 	if btnp(🅾️) then
-		p.move("title")
+		if self.reel:is_fixed() then
+			if api.elasped < 0 then
+				self.reel:decide()
+				self.elasped = 0.0
+
+				-- update and post result
+				s_name = self.reel:get_name()
+				save_name(s_name)
+				if self.is_new then save_score(s_score) end
+				api:post(s_name, s_score, function()
+				end)
+			end
+		else
+			if not self.reel:is_last() then
+				self.reel:next()
+			else
+				self.reel:fix()
+			end
+		end
 	end
 	if btnp(❎) then
+		if self.reel:is_fixed() then
+			self.reel:cancel()
+		else
+			if not self.reel:is_first() then
+				self.reel:back()
+			end
+		end
 	end
 end
 
 function scn_result:pre_draw()
-	printm("result",64,62,3)
+	local px = 64
+	printm("thank you for playing!",64,26,3)
+
+	print("score: ",   34,   60,11)
+	printr(""..s_score,34+56,60,11)
+
+	if self.is_new then
+		printl("new!!",34+56+4,60,9)
+	end
+	if (self.reel:is_fixed() and self.elasped < 0) then
+		printl("ok?",82,68,6)
+	end
+
+	px = 24
+	print("press ⬇️ down, ⬆️ up",px,99,12)
+	print("press ❎ back, 🅾️ ok",px,109,12)
 end
+
+------------------------------------------------------------------------------------------------
+-- ranking
+------------------------------------------------------------------------------------------------
+
+scn_ranking = p.add("ranking")
+
+function scn_ranking:init()
+	self.ranking = p.create(
+		ranking_manager, 34, 42, s_ranking_max
+	)
+	-- get ranking
+	api:pull(function(ranking)
+		self.ranking:set_ranking(ranking)
+		self.ranking:activate_loading(false)
+	end)
+	self.ranking:activate_loading(true)
+end
+
+function scn_ranking:fin()
+	api:exit()
+	p.destroy(self.ranking)
+end
+
+function scn_ranking:pre_update(delta)
+	if btnp(🅾️) then
+	end
+	if btnp(❎) then
+		p.move("title")
+	end
+end
+
+function scn_ranking:pre_draw()
+	printm("[ranking]",64,26,3)
+	print("press ❎ title",37,98,12)
+end
+
 
 -- init ------------------------
 
 function _init()
 	p.init()
 	p.move("title")
+	cartdata(s_cart_id)
+	api:init(s_ranking_max)
 end
 
 -- update ----------------------
 
 function _update()
-	local delta = 1/30
+	local delta = 1/g_fps
 	p.update(delta)
+	api:update(delta)
 end
 
 -- draw ------------------------
 
 function _draw()
 	cls()
-	if g_dbg then p.draw_grid(8) end
+	if g_dbg then draw_grid(8) end
 	p.draw()
-	if g_dbg then p.draw_debug() end
+	draw_letter_box()
+	if p.current.name == "title" then
+		printm("(c) shuzo.i 2020", g_win.x / 2, g_win.y-7, 13)
+	end
+	if g_dbg then
+		draw_logs()
+		p.draw_info()
+		api:draw_info()
+	end
 end
 
+__gfx__
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00a00a00006666000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+a0aaaa0a006666000004440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+aaaaaaaa006666000044244000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+aaaaaaaa000550000004440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0a9999a0000550000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+09999990006666000044444000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000660000005500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000070070000600600005005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000006700000056000000050000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000006700000056000000050000007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+05000060000000500700000006000070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00055000000000000007700000066000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
