@@ -47,6 +47,15 @@ function isort(list,fnc)
 	end
 end
 
+function vec(x,y)
+	return {x = x or 0, y = y or 0}
+end
+
+function unit(x,y)
+	local d = dist(x,y)
+	return (d~=0) and vec(x / d, y / d) or 0
+end
+
 function dist(x1,y1,x2,y2)
 	x2 = x2 or 0.0
 	y2 = y2 or 0.0
@@ -210,9 +219,9 @@ end
 p.object = {
 	const = function(self,px,py,vx,vy,ax,ay,pu,pd)
 		self._p  = {u=pu or 0, d=pd or pu or 0}
-		self.pos = {x=px or 0, y=py or 0}
-		self.vel = {x=vx or 0, y=vy or 0}
-		self.acc = {x=ax or 0, y=ay or 0}
+		self.pos = vec(px,py)
+		self.vel = vec(vx,vy)
+		self.acc = vec(ax,ay)
 
 		self.size = 1
 	end,
@@ -761,17 +770,17 @@ effect_manager = p.define({
 		self.dash = {
 			vx=6,vy=0,ax=0,ay=0,
 			size=4,life=0.4,rect=10,clrs={6,7,7},
-			num=8,line=true
+			num=8,line=true,ang=0
 		}
 		self.smoke = {
 			vx=12,vy=8,ax=0,ay=16,
-			size=2.6,life=0.8,rect=8,clrs={7,7,6,6},
-			num=10,line=false
+			size=2.6,life=0.8,rect=8,clrs={15,15,15,9},
+			num=4,line=false,ang=0
 		}
 		self.smoke_s = {
 			vx=13,vy=7,ax=0,ay=16,
 			size=1.6,life=0.6,rect=8,clrs={7,7,7,6},
-			num=10,line=false
+			num=10,line=false,ang=0
 		}
 
 		-- fade
@@ -824,8 +833,8 @@ effect_manager = p.define({
 			for j=1, #self.ptcls[i] do
 				local ptcl = self.ptcls[i][j]
 				if ptcl.line then
-					local ox=(ptcl.vx<0 and -ptcl.size or (ptcl.vx>0 and ptcl.size or 0))
-					local oy=(ptcl.vy<0 and -ptcl.size or (ptcl.vy>0 and ptcl.size or 0))
+					local ox = ptcl.size * cos(ptcl.ang)
+					local oy = ptcl.size * sin(ptcl.ang)
 					line(ptcl.px, ptcl.py, ptcl.px+ox, ptcl.py+oy, ptcl.clr)
 				else
 					circfill(ptcl.px, ptcl.py, ptcl.size, ptcl.clr)
@@ -834,22 +843,23 @@ effect_manager = p.define({
 		end
 	end,
 
-	spawn_ptcl = function(self, setting, x,y, dx,dy)
-		dx = dx or 0
-		dy = dy or 0
+	spawn_ptcl = function(self, setting, px,py, vx,vy)
+		vx = vx or 0
+		vy = vy or 0
 		local ptcls = {}
 		for i=1, setting.num do
 			add(ptcls, {
-				px = x + rndr(-setting.rect/2.0, setting.rect/2.0),
-				py = y + rndr(-setting.rect/2.0, setting.rect/2.0),
-				vx = rndr(-setting.vx, setting.vx) + dx,
-				vy = rndr(-setting.vy, setting.vy) + dy,
+				px = px + rndr(-setting.rect/2.0, setting.rect/2.0),
+				py = py + rndr(-setting.rect/2.0, setting.rect/2.0),
+				vx = rndr(-setting.vx, setting.vx) + vx,
+				vy = rndr(-setting.vy, setting.vy) + vy,
 				ax = setting.ax,
 				ay = setting.ay,
 				size = rndr(1,setting.size),
 				clr = setting.clrs[rndir(1,#setting.clrs)],
 				life = setting.life,
-				line = setting.line
+				line = setting.line,
+				ang = setting.ang
 			})
 		end
 		add(self.ptcls, ptcls)
@@ -963,6 +973,25 @@ big_ball = p.define({
 		circ(self.pos.x,self.pos.y,5,self.color)
 	end
 }, ball)
+
+message = p.define({
+	const = function(self, str, px, py)
+		message._super.const(self,px,py,0,-12,0,2)
+		self:set_priority(20,20)
+		self.str = str
+		self.remaining = 0.8
+	end,
+	update = function(self,delta)
+		message._super.update(self,delta)
+		self.remaining -= delta
+		if (self.remaining < 0) then
+			p.destroy(self)
+		end
+	end,
+	draw = function(self)
+		printm(self.str, self.pos.x, self.pos.y,11)
+	end
+})
 
 score_manager = p.define({
 	const = function(self,time,ball_list)
@@ -1152,7 +1181,6 @@ function scn_ingame:pre_update(delta)
 			end
 		end
 	end
-
 end
 
 function scn_ingame:post_update(delta)
@@ -1215,7 +1243,7 @@ function scn_result:fin()
 end
 
 function scn_result:pre_update(delta)
-	-- s_dbg_log[1] = #self.konezu_list
+	-- s_dbg_log[1] = ""
 
 	if self.elasped >= 0 then
 		self.elasped += delta
@@ -1324,7 +1352,6 @@ function scn_ranking:pre_draw()
 	print("press ❎ title",37,98,12)
 end
 
-
 -- init ------------------------
 
 function _init()
@@ -1350,7 +1377,7 @@ function _draw()
 	p.draw()
 	draw_letter_box()
 	if p.current.name == "title" then
-		printm("(c) shuzo.i 2020", g_win.x / 2, g_win.y-7, 13)
+		printm("(c) shuzo.i 2000", g_win.x / 2, g_win.y-7, 13)
 	end
 	if g_dbg then
 		draw_logs()
